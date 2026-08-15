@@ -164,6 +164,8 @@ export function cleanSymptomTags(tokens: string[]) {
     const t = (raw || "").trim();
     if (!t || seen.has(t)) continue;
     if (looksLikePersonName(t)) continue;
+    // 两字无医学提示且不在白名单 → 署名噪声
+    if (t.length === 2 && !KEEP.has(t) && !hasMedicalHint(t)) continue;
     seen.add(t);
     out.push(t);
   }
