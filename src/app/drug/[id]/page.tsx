@@ -29,7 +29,7 @@ export default async function DrugPage({ params }: { params: Promise<{ id: strin
   );
   return (
     <div className="layout">
-      <Filters mode="drug" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} />
+      <Filters mode="drug" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} q={d.generic_name || d.title} />
       <main>
         <article className="insert">
           <div className="insert-grid">

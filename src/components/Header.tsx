@@ -81,8 +81,15 @@ export function Header({ subtitle }: { subtitle: string }) {
     }
     const fromRoute = detailLabel(pathname);
     if (fromRoute) {
+      // Detail title in the box only — do not overwrite the last keyword used for facet filters.
       setQ(fromRoute);
-      saveQ(fromRoute);
+      setOpen(false);
+      setHits([]);
+      return;
+    }
+    // Search/browse URL without ?q= must match the empty keyword (avoid stale box text).
+    if (pathname === "/wiki/search" || pathname === "/search" || pathname === "/all") {
+      setQ("");
       setOpen(false);
       setHits([]);
       return;

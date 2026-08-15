@@ -20,7 +20,7 @@ export default async function WikiDetailPage({ params }: { params: Promise<{ nam
     const drugHref = `/drugs-for/${encodeURIComponent(name)}`;
     return (
       <div className="layout">
-        <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} />
+        <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} q={name} />
         <main>
           <Crumb items={[{ href: "/", label: "首页" }, { href: "/wiki", label: "疾病" }, { label: name }]} />
           <div className="panel-head">
@@ -57,7 +57,7 @@ export default async function WikiDetailPage({ params }: { params: Promise<{ nam
     const suggestions = await fuzzyWikiNames(name, 8);
     return (
       <div className="layout">
-        <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} />
+        <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} q={name} />
         <main>
           <div className="empty">词条数据缺失。{suggestions[0] ? `试试「${suggestions[0]}」` : ""}</div>
         </main>
@@ -77,7 +77,7 @@ export default async function WikiDetailPage({ params }: { params: Promise<{ nam
   ].filter(([k]) => d.sections[k]);
   return (
     <div className="layout">
-      <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} />
+      <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} q={d.name} />
       <main>
         <article className="insert">
           <div className="insert-grid">

@@ -240,7 +240,7 @@ export async function queryGeneric(name: string, page = 1, size = 40) {
   };
 }
 
-export async function queryDisease(name: string, page = 1, size = 20) {
+export async function queryDisease(name: string, page = 1, size = 20, klass = "", nature = "") {
   page = Math.max(1, page | 0);
   size = Math.min(50, Math.max(1, size | 0));
   const keys = await diseaseMatchKeys(name);
@@ -254,6 +254,8 @@ export async function queryDisease(name: string, page = 1, size = 20) {
   for (const id of idSet) {
     const p = accel.byId.get(id);
     if (!p) continue;
+    if (klass && p[5] !== klass) continue;
+    if (nature && p[6] !== nature) continue;
     const gname = p[1];
     let g = map.get(gname);
     if (!g) {
@@ -273,10 +275,15 @@ export async function queryDisease(name: string, page = 1, size = 20) {
   };
 }
 
-export async function queryMfr(name: string, page = 1, size = 20) {
+export async function queryMfr(name: string, page = 1, size = 20, klass = "", nature = "") {
   page = Math.max(1, page | 0);
   size = Math.min(50, Math.max(1, size | 0));
-  const rows = (await getCatalog()).filter((p) => p[7] === name);
+  const rows = (await getCatalog()).filter((p) => {
+    if (p[7] !== name) return false;
+    if (klass && p[5] !== klass) return false;
+    if (nature && p[6] !== nature) return false;
+    return true;
+  });
   return {
     manufacturer: name,
     total: rows.length,

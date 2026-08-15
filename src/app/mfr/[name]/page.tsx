@@ -8,15 +8,35 @@ export default async function MfrPage({
   searchParams,
 }: {
   params: Promise<{ name: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; class?: string; nature?: string }>;
 }) {
   const name = decodeURIComponent((await params).name);
-  const page = Number((await searchParams).page || "1") || 1;
+  const sp = await searchParams;
+  const page = Number(sp.page || "1") || 1;
+  const klass = sp.class || "";
+  const nature = sp.nature || "";
   const meta = await getMeta();
-  const data = await queryMfr(name, page, 20);
+  const data = await queryMfr(name, page, 20, klass, nature);
+  const base = `/mfr/${encodeURIComponent(name)}`;
+  const hrefFor = (p: number) => {
+    const u = new URLSearchParams();
+    if (klass) u.set("class", klass);
+    if (nature) u.set("nature", nature);
+    if (p > 1) u.set("page", String(p));
+    const qs = u.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
   return (
     <div className="layout">
-      <Filters mode="drug" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} />
+      <Filters
+        mode="drug"
+        classes={meta.classes}
+        natures={meta.natures}
+        depts={meta.wikiDepts}
+        klass={klass}
+        nature={nature}
+        basePath={base}
+      />
       <main>
         <div className="panel-head">
           <h1>{name}</h1>
@@ -25,7 +45,8 @@ export default async function MfrPage({
         {data.items.map((it) => (
           <DrugCard key={it.id} it={it} />
         ))}
-        <Pager page={data.page} size={data.size} total={data.total} hrefFor={(p) => `/mfr/${encodeURIComponent(name)}?page=${p}`} />
+        {data.total === 0 ? <div className="empty">没有匹配的说明书</div> : null}
+        <Pager page={data.page} size={data.size} total={data.total} hrefFor={hrefFor} />
       </main>
     </div>
   );

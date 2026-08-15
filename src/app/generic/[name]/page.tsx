@@ -18,7 +18,7 @@ export default async function GenericPage({
   const data = await queryGeneric(name, page, 40);
   return (
     <div className="layout">
-      <Filters mode="drug" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} />
+      <Filters mode="drug" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} q={data.generic_name || name} />
       <main>
         <Crumb items={[{ href: "/", label: "首页" }, { href: "/search", label: "药品" }, { label: data.generic_name }]} />
         {data.total ? (

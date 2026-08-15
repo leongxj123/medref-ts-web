@@ -9,16 +9,36 @@ export default async function DrugsForPage({
   searchParams,
 }: {
   params: Promise<{ name: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; class?: string; nature?: string }>;
 }) {
   const name = decodeURIComponent((await params).name);
-  const page = Number((await searchParams).page || "1") || 1;
+  const sp = await searchParams;
+  const page = Number(sp.page || "1") || 1;
+  const klass = sp.class || "";
+  const nature = sp.nature || "";
   const meta = await getMeta();
-  const data = await queryDisease(name, page, 20);
+  const data = await queryDisease(name, page, 20, klass, nature);
   const canon = await resolveWiki(name);
+  const base = `/drugs-for/${encodeURIComponent(name)}`;
+  const hrefFor = (p: number) => {
+    const u = new URLSearchParams();
+    if (klass) u.set("class", klass);
+    if (nature) u.set("nature", nature);
+    if (p > 1) u.set("page", String(p));
+    const qs = u.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
   return (
     <div className="layout">
-      <Filters mode="drug" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} />
+      <Filters
+        mode="drug"
+        classes={meta.classes}
+        natures={meta.natures}
+        depts={meta.wikiDepts}
+        klass={klass}
+        nature={nature}
+        basePath={base}
+      />
       <main>
         <Crumb items={[{ href: "/", label: "首页" }, { href: "/search", label: "药品" }, { label: name }]} />
         <div className="panel-head">
@@ -36,12 +56,7 @@ export default async function DrugsForPage({
           <GroupCard key={g.generic_name} g={g} />
         ))}
         {data.total === 0 ? <div className="empty">说明书库中没有标注该疾病的药品</div> : null}
-        <Pager
-          page={data.page}
-          size={data.size}
-          total={data.total}
-          hrefFor={(p) => `/drugs-for/${encodeURIComponent(name)}?page=${p}`}
-        />
+        <Pager page={data.page} size={data.size} total={data.total} hrefFor={hrefFor} />
       </main>
     </div>
   );

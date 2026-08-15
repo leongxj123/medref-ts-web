@@ -9,6 +9,8 @@ export function Filters({
   nature,
   dept,
   q,
+  /** Keep facet clicks on this path (e.g. /mfr/xxx, /drugs-for/xxx). Default: /wiki/search or /search */
+  basePath,
 }: {
   mode: "wiki" | "drug" | "home";
   classes: string[];
@@ -18,6 +20,7 @@ export function Filters({
   nature?: string;
   dept?: string;
   q?: string;
+  basePath?: string;
 }) {
   if (mode === "home") {
     return (
@@ -27,12 +30,13 @@ export function Filters({
     );
   }
   if (mode === "wiki") {
+    const root = basePath || "/wiki/search";
     const href = (d: string) => {
       const p = new URLSearchParams();
       if (q) p.set("q", q);
       if (d) p.set("dept", d);
       const qs = p.toString();
-      return qs ? `/wiki/search?${qs}` : "/wiki/search";
+      return qs ? `${root}?${qs}` : root;
     };
     return (
       <aside className="rail no-print">
@@ -49,17 +53,18 @@ export function Filters({
             ))}
           </div>
         </section>
-        <p className="hint">可在当前检索结果上按科室二次筛选；并发症、推荐药品可点进对应条目。</p>
+        <p className="hint">可在当前检索结果上按科室二次筛选；无检索词时为浏览该科全部。</p>
       </aside>
     );
   }
+  const root = basePath || "/search";
   const href = (c: string, n: string) => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (c) p.set("class", c);
     if (n) p.set("nature", n);
     const qs = p.toString();
-    return qs ? `/search?${qs}` : "/search";
+    return qs ? `${root}?${qs}` : root;
   };
   return (
     <aside className="rail no-print">
@@ -89,7 +94,7 @@ export function Filters({
           ))}
         </div>
       </section>
-      <p className="hint">可在当前检索结果上按分类/性质二次筛选；筛选条件写在网址里便于收藏。</p>
+      <p className="hint">可在当前结果上按分类/性质二次筛选；条件写在网址里便于收藏。</p>
     </aside>
   );
 }
