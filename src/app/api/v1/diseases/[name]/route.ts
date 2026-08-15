@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getWikiDetail, getWikiPack } from "@/lib/data";
 import { queryDisease, resolveWiki } from "@/lib/search";
+import { cleanSymptomTags } from "@/lib/symptoms";
 
 export async function GET(_: Request, { params }: { params: Promise<{ name: string }> }) {
   const name = decodeURIComponent((await params).name);
@@ -28,7 +29,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ name: stri
       cure_lasttime: d.cure_lasttime,
       cured_prob: d.cured_prob,
       cost_money: d.cost_money,
-      symptom: d.symptom,
+      symptom: cleanSymptomTags(d.symptom),
       check: d.check,
       acompany: d.acompany,
       common_drug: d.common_drug.map((x) => x.label),

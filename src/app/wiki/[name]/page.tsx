@@ -5,6 +5,7 @@ import { Toolbar } from "@/components/ClientBits";
 import { LinkedBody } from "@/components/LinkedBody";
 import { drugRefHref, getMeta, getWikiDetail, getWikiPack, wikiPath } from "@/lib/data";
 import { fuzzyWikiNames, queryDisease, resolveWiki } from "@/lib/search";
+import { cleanSymptomTags } from "@/lib/symptoms";
 
 export default async function WikiDetailPage({ params }: { params: Promise<{ name: string }> }) {
   const { name: raw } = await params;
@@ -65,6 +66,7 @@ export default async function WikiDetailPage({ params }: { params: Promise<{ nam
   }
 
   const related = await queryDisease(d.name, 1, 8);
+  const symptoms = cleanSymptomTags(d.symptom);
   const acompany = await Promise.all(
     d.acompany.map(async (x) => ({ label: x, href: wikiPath((await resolveWiki(x)) || x) }))
   );
@@ -113,8 +115,8 @@ export default async function WikiDetailPage({ params }: { params: Promise<{ nam
                 <dd>{d.cost_money || "—"}</dd>
                 <dt>症状</dt>
                 <dd className="chips">
-                  {d.symptom.length
-                    ? d.symptom.map((x) => (
+                  {symptoms.length
+                    ? symptoms.map((x) => (
                         <Link className="tag" key={x} href={`/wiki/search?q=${encodeURIComponent(x)}`}>
                           {x}
                         </Link>
