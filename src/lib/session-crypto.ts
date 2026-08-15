@@ -64,13 +64,36 @@ export async function verifySessionToken(token: string, secret: string) {
   }
 }
 
-export function sessionCookieOptions() {
-  const maxAge = SESSION_DAYS * 24 * 3600;
+function cookieSecure() {
+  // Always Secure on Vercel (HTTPS). Avoid relying on build-time NODE_ENV alone.
+  return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+}
+
+export function sessionCookieOptions(maxAge = SESSION_DAYS * 24 * 3600) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production" || process.env.VERCEL === "1",
+    secure: cookieSecure(),
     path: "/",
     maxAge,
+    expires: new Date(Date.now() + maxAge * 1000),
   };
+}
+
+/** Manual Set-Cookie line — more reliable on redirect responses than cookies.set alone. */
+export function serializeSessionCookie(value: string, maxAge = SESSION_DAYS * 24 * 3600) {
+  const parts = [
+    `${COOKIE}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${Math.max(0, maxAge)}`,
+  ];
+  if (maxAge > 0) {
+    parts.push(`Expires=${new Date(Date.now() + maxAge * 1000).toUTCString()}`);
+  } else {
+    parts.push("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+  }
+  if (cookieSecure()) parts.push("Secure");
+  return parts.join("; ");
 }

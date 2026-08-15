@@ -9,7 +9,14 @@ function timingEqual(a: string, b: string) {
 }
 
 async function hasSession(req: NextRequest) {
-  const token = req.cookies.get(COOKIE)?.value;
+  let token = req.cookies.get(COOKIE)?.value || "";
+  if (token.includes("%")) {
+    try {
+      token = decodeURIComponent(token);
+    } catch {
+      /* keep raw */
+    }
+  }
   const secret = process.env.AUTH_SECRET?.trim() || "";
   if (!token || secret.length < 16) return false;
   try {

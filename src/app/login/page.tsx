@@ -25,7 +25,7 @@ export default async function LoginPage({
       <main>
         <section className="hero">
           <h1>登录</h1>
-          <p className="hero-note">账号密码在 Vercel 环境变量中配置，不写进代码。登录后会话保留约 14 天。</p>
+          <p className="hero-note">登录后会话保留约 14 天。</p>
           {missing.length ? (
             <p className="empty">
               当前部署读不到：{missing.join("、")}
