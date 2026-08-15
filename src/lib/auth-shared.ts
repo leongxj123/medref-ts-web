@@ -1,7 +1,6 @@
-import { SignJWT, jwtVerify } from "jose";
+import { signSessionToken, verifySessionToken, COOKIE, SESSION_DAYS } from "@/lib/session-crypto";
 
-export const COOKIE = "medref_session";
-const DAYS = 14;
+export { COOKIE, SESSION_DAYS };
 
 export function timingEqual(a: string, b: string) {
   if (a.length !== b.length) return false;
@@ -10,34 +9,29 @@ export function timingEqual(a: string, b: string) {
   return out === 0;
 }
 
-function secretKey() {
-  const s = process.env.AUTH_SECRET;
-  if (!s || s.length < 16) throw new Error("请在环境变量中设置至少 16 位的 AUTH_SECRET");
-  return new TextEncoder().encode(s);
+function requireSecret() {
+  const s = process.env.AUTH_SECRET?.trim() || "";
+  if (s.length < 16) throw new Error("请在环境变量中设置至少 16 位的 AUTH_SECRET");
+  return s;
 }
 
 export async function signSession(username: string) {
-  return new SignJWT({ u: username })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${DAYS}d`)
-    .sign(secretKey());
+  return signSessionToken(username, requireSecret());
 }
 
 export async function verifySession(token: string) {
-  const { payload } = await jwtVerify(token, secretKey());
-  return String(payload.u || "");
+  return verifySessionToken(token, requireSecret());
 }
 
 export function checkPassword(user: string, pass: string) {
-  const expectUser = process.env.AUTH_USERNAME || "";
-  const expectPass = process.env.AUTH_PASSWORD || "";
+  const expectUser = process.env.AUTH_USERNAME?.trim() || "";
+  const expectPass = process.env.AUTH_PASSWORD?.trim() || "";
   if (!expectUser || !expectPass) return false;
   return timingEqual(user, expectUser) && timingEqual(pass, expectPass);
 }
 
 export function checkApiKey(given: string | null) {
-  const expect = process.env.API_KEY || "";
+  const expect = process.env.API_KEY?.trim() || "";
   if (!expect || !given) return false;
   return timingEqual(given, expect);
 }

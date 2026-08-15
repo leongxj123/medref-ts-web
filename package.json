@@ -10,7 +10,6 @@
     "export-data": "python ../export_web.py"
   },
   "dependencies": {
-    "jose": "^6.0.11",
     "next": "^15.5.7",
     "react": "19.1.0",
     "react-dom": "19.1.0"

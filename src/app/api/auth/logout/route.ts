@@ -1,19 +1,17 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { COOKIE } from "@/lib/auth-shared";
+import { NextRequest, NextResponse } from "next/server";
+import { COOKIE, sessionCookieOptions } from "@/lib/session-crypto";
 
-function clear() {
-  return cookies().then((jar) => {
-    jar.delete(COOKIE);
-  });
+export const dynamic = "force-dynamic";
+
+function clearCookie(res: NextResponse) {
+  res.cookies.set(COOKIE, "", { ...sessionCookieOptions(), maxAge: 0 });
+  return res;
 }
 
 export async function POST() {
-  await clear();
-  return NextResponse.json({ ok: true });
+  return clearCookie(NextResponse.json({ ok: true }));
 }
 
-export async function GET(req: Request) {
-  await clear();
-  return NextResponse.redirect(new URL("/login", req.url));
+export async function GET(req: NextRequest) {
+  return clearCookie(NextResponse.redirect(new URL("/login", req.url)));
 }
