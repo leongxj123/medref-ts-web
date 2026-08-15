@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   jar.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.VERCEL === "1",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 14 * 24 * 3600,
   });

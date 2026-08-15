@@ -13,15 +13,19 @@ function remember<T>(key: string, fn: () => Promise<T>): Promise<T> {
 
 async function readBytes(rel: string): Promise<Buffer> {
   const local = path.join(process.cwd(), "public", "data", rel);
-  if (existsSync(local)) return readFile(local);
+  try {
+    if (existsSync(local)) return await readFile(local);
+  } catch {
+    /* fall through to HTTP fetch */
+  }
   const base =
     process.env.DATA_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+    (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : "");
   if (!base) {
-    throw new Error("缺少数据文件。请在本机运行 python export_web.py，生成 ts-web/public/data");
+    throw new Error("缺少数据文件。请确认 public/data 已随部署上传，或设置 DATA_BASE_URL。");
   }
   const res = await fetch(`${base.replace(/\/$/, "")}/data/${rel}`, {
-    headers: { "x-internal-token": process.env.AUTH_SECRET || "" },
     cache: "force-cache",
   });
   if (!res.ok) throw new Error(`无法读取数据 ${rel}（${res.status}）`);

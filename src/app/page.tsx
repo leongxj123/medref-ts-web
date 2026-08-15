@@ -7,7 +7,22 @@ import { DISCLAIMER } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const meta = await getMeta();
+  let meta;
+  try {
+    meta = await getMeta();
+  } catch (err) {
+    return (
+      <div className="layout">
+        <main>
+          <div className="empty">
+            数据未就绪：{err instanceof Error ? err.message : "无法加载 meta.json"}
+            <br />
+            请确认部署包含 public/data，并在 Vercel 配置 AUTH_USERNAME / AUTH_PASSWORD / AUTH_SECRET / API_KEY。
+          </div>
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="layout">
       <Filters mode="home" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} />
