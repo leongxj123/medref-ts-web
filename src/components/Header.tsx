@@ -6,6 +6,24 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Hit = { name: string; kind: string };
 
+const Q_KEY = "medref_last_q";
+
+function readSavedQ() {
+  try {
+    return sessionStorage.getItem(Q_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveQ(value: string) {
+  try {
+    sessionStorage.setItem(Q_KEY, value);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function Header({ subtitle }: { subtitle: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -18,13 +36,21 @@ export function Header({ subtitle }: { subtitle: string }) {
         pathname.startsWith("/mfr")
       ? "drug"
       : "home";
-  const [q, setQ] = useState(searchParams.get("q") || "");
+  const [q, setQ] = useState(() => searchParams.get("q") || "");
   const [hits, setHits] = useState<Hit[]>([]);
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(-1);
 
   useEffect(() => {
-    setQ(searchParams.get("q") || "");
+    // Only sync from URL when the page actually carries ?q= (search results).
+    // Detail pages have no q — keep what the user typed instead of wiping the box.
+    if (searchParams.has("q")) {
+      const fromUrl = searchParams.get("q") || "";
+      setQ(fromUrl);
+      saveQ(fromUrl);
+      return;
+    }
+    setQ((prev) => prev || readSavedQ());
   }, [searchParams]);
 
   useEffect(() => {
@@ -39,10 +65,14 @@ export function Header({ subtitle }: { subtitle: string }) {
       const data = await res.json();
       setHits(data.items || []);
       setIdx(-1);
-      setOpen(true);
     }, 80);
     return () => clearTimeout(t);
   }, [q, mode]);
+
+  function updateQ(value: string) {
+    setQ(value);
+    saveQ(value);
+  }
 
   const placeholder = useMemo(
     () =>
@@ -56,6 +86,7 @@ export function Header({ subtitle }: { subtitle: string }) {
 
   function goSearch(value = q) {
     const query = value.trim();
+    updateQ(query);
     setOpen(false);
     if (mode === "wiki") router.push(`/wiki/search?q=${encodeURIComponent(query)}`);
     else if (mode === "home") router.push(query ? `/all?q=${encodeURIComponent(query)}` : "/");
@@ -70,6 +101,7 @@ export function Header({ subtitle }: { subtitle: string }) {
 
   function pick(hit: Hit) {
     setOpen(false);
+    saveQ(q);
     if (hit.kind === "疾病") router.push(`/wiki/${encodeURIComponent(hit.name)}`);
     else if (hit.kind === "通用名") router.push(`/generic/${encodeURIComponent(hit.name)}`);
     else goSearch(hit.name);
@@ -95,15 +127,23 @@ export function Header({ subtitle }: { subtitle: string }) {
       <form className="search" onSubmit={onSubmit} autoComplete="off">
         <input
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            updateQ(e.target.value);
+            setOpen(true);
+          }}
           onFocus={() => hits.length && setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" && hits.length) {
               e.preventDefault();
               setIdx((v) => Math.min(hits.length - 1, v + 1));
+              setOpen(true);
             } else if (e.key === "ArrowUp" && hits.length) {
               e.preventDefault();
               setIdx((v) => Math.max(0, v - 1));
+              setOpen(true);
+            } else if (e.key === "Escape") {
+              setOpen(false);
             }
           }}
           placeholder={placeholder}
