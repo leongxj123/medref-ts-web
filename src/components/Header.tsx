@@ -38,6 +38,27 @@ function navMode(pathname: string): "home" | "drug" | "wiki" {
   return "home";
 }
 
+/** Current entity name from detail routes (wiki / generic / drugs-for / mfr). */
+function detailLabel(pathname: string): string | null {
+  const tryDecode = (raw: string) => {
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  };
+  if (pathname.startsWith("/wiki/search")) return null;
+  const wiki = pathname.match(/^\/wiki\/([^/]+)$/);
+  if (wiki) return tryDecode(wiki[1]);
+  const generic = pathname.match(/^\/generic\/([^/]+)$/);
+  if (generic) return tryDecode(generic[1]);
+  const drugsFor = pathname.match(/^\/drugs-for\/([^/]+)$/);
+  if (drugsFor) return tryDecode(drugsFor[1]);
+  const mfr = pathname.match(/^\/mfr\/([^/]+)$/);
+  if (mfr) return tryDecode(mfr[1]);
+  return null;
+}
+
 export function Header({ subtitle }: { subtitle: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -55,10 +76,19 @@ export function Header({ subtitle }: { subtitle: string }) {
       const fromUrl = searchParams.get("q") || "";
       setQ(fromUrl);
       saveQ(fromUrl);
+      setOpen(false);
+      return;
+    }
+    const fromRoute = detailLabel(pathname);
+    if (fromRoute) {
+      setQ(fromRoute);
+      saveQ(fromRoute);
+      setOpen(false);
+      setHits([]);
       return;
     }
     setQ((prev) => prev || readSavedQ());
-  }, [searchParams]);
+  }, [searchParams, pathname]);
 
   useEffect(() => {
     abortRef.current?.abort();
@@ -66,6 +96,11 @@ export function Header({ subtitle }: { subtitle: string }) {
     if (!query) {
       setHits([]);
       setSuggestErr("");
+      return;
+    }
+    // On a detail page whose label already fills the box, skip suggest fetch noise.
+    if (detailLabel(pathname) === query) {
+      setHits([]);
       return;
     }
     const ac = new AbortController();
@@ -96,7 +131,7 @@ export function Header({ subtitle }: { subtitle: string }) {
       clearTimeout(t);
       ac.abort();
     };
-  }, [q, mode]);
+  }, [q, mode, pathname]);
 
   function updateQ(value: string) {
     setQ(value);
@@ -130,7 +165,7 @@ export function Header({ subtitle }: { subtitle: string }) {
 
   function pick(hit: Hit) {
     setOpen(false);
-    saveQ(q);
+    updateQ(hit.name);
     if (hit.kind === "疾病") router.push(`/wiki/${encodeURIComponent(hit.name)}`);
     else if (hit.kind === "通用名") router.push(`/generic/${encodeURIComponent(hit.name)}`);
     else goSearch(hit.name);
