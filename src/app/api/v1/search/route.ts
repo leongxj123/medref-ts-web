@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { searchDrugs, searchWiki } from "@/lib/search";
 
 export async function GET(req: NextRequest) {
+  const rl = rateLimit(`search:${clientKey(req)}`, 90, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
   const q = req.nextUrl.searchParams.get("q") || "";
   const scope = req.nextUrl.searchParams.get("scope") || "all";
   const page = Number(req.nextUrl.searchParams.get("page") || "1") || 1;

@@ -3,8 +3,6 @@ import { Filters } from "@/components/Filters";
 import { getMeta, getWikiPack } from "@/lib/data";
 import { searchWiki } from "@/lib/search";
 
-export const dynamic = "force-dynamic";
-
 export default async function WikiSearchPage({
   searchParams,
 }: {

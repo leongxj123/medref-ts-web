@@ -3,8 +3,6 @@ import { Filters } from "@/components/Filters";
 import { getMeta } from "@/lib/data";
 import { searchDrugs } from "@/lib/search";
 
-export const dynamic = "force-dynamic";
-
 export default async function SearchPage({
   searchParams,
 }: {
@@ -16,6 +14,22 @@ export default async function SearchPage({
   const nature = sp.nature || "";
   const page = Number(sp.page || "1") || 1;
   const meta = await getMeta();
+  const hasQuery = Boolean(q.trim() || klass || nature);
+
+  if (!hasQuery) {
+    return (
+      <div className="layout">
+        <Filters mode="drug" classes={meta.classes} natures={meta.natures} depts={meta.wikiDepts} klass={klass} nature={nature} q={q} />
+        <main>
+          <div className="panel-head">
+            <h1>药品检索</h1>
+          </div>
+          <p className="muted">请输入通用名、商品名、批准文号或拼音，也可在左侧选择分类 / 性质后再查询。</p>
+        </main>
+      </div>
+    );
+  }
+
   const data = await searchDrugs(q, klass, nature, page, 20);
   const qs = (p: number) => {
     const u = new URLSearchParams();

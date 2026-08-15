@@ -3,11 +3,10 @@ import { notFound } from "next/navigation";
 import { Crumb, DrugCard } from "@/components/Cards";
 import { Filters } from "@/components/Filters";
 import { Toolbar } from "@/components/ClientBits";
-import { getCatalog, getDrugDetail, getMeta, itemFrom, wikiPath } from "@/lib/data";
+import { LinkedBody } from "@/components/LinkedBody";
+import { getDrugDetail, getGenericIndex, getMeta, getSearchAccel, itemFrom, wikiPath } from "@/lib/data";
 import { resolveWiki } from "@/lib/search";
 import { SECTION_LABELS, SECTION_TONE } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
 
 export default async function DrugPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: raw } = await params;
@@ -16,9 +15,14 @@ export default async function DrugPage({ params }: { params: Promise<{ id: strin
   const d = await getDrugDetail(id);
   if (!d) notFound();
   const meta = await getMeta();
-  const cat = await getCatalog();
-  const siblings = cat.filter((p) => p[1] === d.generic_name && p[0] !== id).slice(0, 8).map(itemFrom);
-  const siblingCount = cat.filter((p) => p[1] === d.generic_name).length;
+  const [index, accel] = await Promise.all([getGenericIndex(), getSearchAccel()]);
+  const siblingIds = (index[d.generic_name] || []).filter((x) => x !== id);
+  const siblings = siblingIds
+    .slice(0, 8)
+    .map((sid) => accel.byId.get(sid))
+    .filter(Boolean)
+    .map((p) => itemFrom(p!));
+  const siblingCount = siblingIds.length + 1;
   const sections = Object.keys(SECTION_LABELS).filter((k) => d.sections[k]);
   const diseaseLinks = await Promise.all(
     d.diseases.map(async (x) => ({ label: x, href: wikiPath((await resolveWiki(x)) || x) }))
@@ -87,9 +91,7 @@ export default async function DrugPage({ params }: { params: Promise<{ id: strin
               {sections.map((k) => (
                 <section className={`section ${SECTION_TONE[k] || ""}`} id={`sec-${k}`} key={k}>
                   <h2>{SECTION_LABELS[k]}</h2>
-                  <div className="body" style={{ whiteSpace: "pre-wrap" }}>
-                    {d.sections[k]}
-                  </div>
+                  <LinkedBody text={d.sections[k]} />
                 </section>
               ))}
               {siblingCount > 1 ? (

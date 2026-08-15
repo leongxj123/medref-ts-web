@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/check-data.mjs && next build",
     "start": "next start",
     "lint": "eslint",
+    "check-data": "node scripts/check-data.mjs",
+    "hash-password": "node scripts/hash-password.mjs",
     "export-data": "python ../export_web.py"
   },
   "dependencies": {

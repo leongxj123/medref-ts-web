@@ -1,23 +1,69 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Crumb, GroupCard } from "@/components/Cards";
 import { Filters } from "@/components/Filters";
 import { Toolbar } from "@/components/ClientBits";
+import { LinkedBody } from "@/components/LinkedBody";
 import { drugRefHref, getMeta, getWikiDetail, getWikiPack, wikiPath } from "@/lib/data";
-import { queryDisease, resolveWiki } from "@/lib/search";
-
-export const dynamic = "force-dynamic";
+import { fuzzyWikiNames, queryDisease, resolveWiki } from "@/lib/search";
 
 export default async function WikiDetailPage({ params }: { params: Promise<{ name: string }> }) {
   const { name: raw } = await params;
   const name = decodeURIComponent(raw);
   const meta = await getMeta();
   const wiki = await getWikiPack();
-  const canon = (await resolveWiki(name)) || name;
-  const id = wiki.rows.find((r) => r[1] === canon)?.[0];
-  if (!id) redirect(`/drugs-for/${encodeURIComponent(name)}`);
+  const canon = (await resolveWiki(name)) || "";
+  const id = canon ? wiki.rows.find((r) => r[1] === canon)?.[0] : undefined;
+
+  if (!id) {
+    const suggestions = await fuzzyWikiNames(name, 8);
+    const drugHref = `/drugs-for/${encodeURIComponent(name)}`;
+    return (
+      <div className="layout">
+        <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} />
+        <main>
+          <Crumb items={[{ href: "/", label: "首页" }, { href: "/wiki", label: "疾病" }, { label: name }]} />
+          <div className="panel-head">
+            <h1>未找到疾病「{name}」</h1>
+          </div>
+          <p className="muted">百科中没有完全匹配的词条。可查看近似病名，或按该名称检索相关药品说明书。</p>
+          {suggestions.length ? (
+            <section className="section">
+              <h2>近似病名</h2>
+              <div className="chips">
+                {suggestions.map((s) => (
+                  <Link className="tag" key={s} href={wikiPath(s)}>
+                    {s}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+          <p style={{ marginTop: 18 }}>
+            <Link className="ghost" href={drugHref}>
+              按「{name}」查找相关药品
+            </Link>
+            <Link className="ghost" href={`/wiki/search?q=${encodeURIComponent(name)}`} style={{ marginLeft: 10 }}>
+              在疾病中搜索
+            </Link>
+          </p>
+        </main>
+      </div>
+    );
+  }
+
   const d = await getWikiDetail(id);
-  if (!d) redirect(`/drugs-for/${encodeURIComponent(name)}`);
+  if (!d) {
+    const suggestions = await fuzzyWikiNames(name, 8);
+    return (
+      <div className="layout">
+        <Filters mode="wiki" classes={meta.classes} natures={meta.natures} depts={wiki.depts} />
+        <main>
+          <div className="empty">词条数据缺失。{suggestions[0] ? `试试「${suggestions[0]}」` : ""}</div>
+        </main>
+      </div>
+    );
+  }
+
   const related = await queryDisease(d.name, 1, 8);
   const acompany = await Promise.all(
     d.acompany.map(async (x) => ({ label: x, href: wikiPath((await resolveWiki(x)) || x) }))
@@ -123,9 +169,7 @@ export default async function WikiDetailPage({ params }: { params: Promise<{ nam
               {sectionEntries.map(([k, label]) => (
                 <section className="section" id={`sec-${k}`} key={k}>
                   <h2>{label}</h2>
-                  <div className="body" style={{ whiteSpace: "pre-wrap" }}>
-                    {d.sections[k]}
-                  </div>
+                  <LinkedBody text={d.sections[k]} />
                 </section>
               ))}
               {(d.do_eat.length || d.not_eat.length || d.recommand_eat.length) > 0 ? (

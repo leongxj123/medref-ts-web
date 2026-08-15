@@ -1,3 +1,4 @@
+import { isPasswordHash, verifyPasswordHash } from "@/lib/password";
 import { signSessionToken, verifySessionToken, COOKIE, SESSION_DAYS } from "@/lib/session-crypto";
 
 export { COOKIE, SESSION_DAYS };
@@ -25,13 +26,29 @@ export async function verifySession(token: string) {
 
 export function checkPassword(user: string, pass: string) {
   const expectUser = process.env.AUTH_USERNAME?.trim() || "";
+  if (!expectUser || !timingEqual(user, expectUser)) return false;
+
+  const hash = process.env.AUTH_PASSWORD_HASH?.trim() || "";
+  if (hash) return verifyPasswordHash(pass, hash);
+
   const expectPass = process.env.AUTH_PASSWORD?.trim() || "";
-  if (!expectUser || !expectPass) return false;
-  return timingEqual(user, expectUser) && timingEqual(pass, expectPass);
+  if (!expectPass) return false;
+  if (isPasswordHash(expectPass)) return verifyPasswordHash(pass, expectPass);
+  return timingEqual(pass, expectPass);
 }
 
 export function checkApiKey(given: string | null) {
   const expect = process.env.API_KEY?.trim() || "";
   if (!expect || !given) return false;
   return timingEqual(given, expect);
+}
+
+/** Reject open redirects and protocol-relative URLs. */
+export function safeNextPath(raw: string | null | undefined) {
+  const next = (raw || "/").trim() || "/";
+  if (!next.startsWith("/")) return "/";
+  if (next.startsWith("//")) return "/";
+  if (next.includes("://")) return "/";
+  if (next.includes("\\")) return "/";
+  return next;
 }

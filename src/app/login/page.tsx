@@ -12,7 +12,7 @@ export default async function LoginPage({
   const sp = await searchParams;
   const checks = {
     AUTH_USERNAME: envPresent("AUTH_USERNAME"),
-    AUTH_PASSWORD: envPresent("AUTH_PASSWORD"),
+    AUTH_PASSWORD: envPresent("AUTH_PASSWORD") || envPresent("AUTH_PASSWORD_HASH"),
     AUTH_SECRET: envPresent("AUTH_SECRET") && (process.env.AUTH_SECRET?.trim().length || 0) >= 16,
   };
   const missing = Object.entries(checks)

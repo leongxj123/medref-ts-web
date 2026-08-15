@@ -4,8 +4,6 @@ import { HomeLists } from "@/components/ClientBits";
 import { getMeta } from "@/lib/data";
 import { DISCLAIMER } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
-
 export default async function HomePage() {
   let meta;
   try {
@@ -17,7 +15,7 @@ export default async function HomePage() {
           <div className="empty">
             数据未就绪：{err instanceof Error ? err.message : "无法加载 meta.json"}
             <br />
-            请确认部署包含 public/data，并在 Vercel 配置 AUTH_USERNAME / AUTH_PASSWORD / AUTH_SECRET / API_KEY。
+            请确认部署包含 public/data（或设置 DATA_BASE_URL），并配置登录相关环境变量。
           </div>
         </main>
       </div>
@@ -59,6 +57,11 @@ export default async function HomePage() {
             <div className="kicker">疾病</div>
             <h2>疾病百科</h2>
             <p className="muted">按病名、症状、科室查找。条目中的药品会链到说明书，并发症可跳到其他疾病。</p>
+          </Link>
+          <Link className="home-card" href="/docs">
+            <div className="kicker">API</div>
+            <h2>程序接口</h2>
+            <p className="muted">供 LLM / 脚本调用的 JSON API 与 OpenAPI 说明。</p>
           </Link>
         </div>
         <HomeLists />

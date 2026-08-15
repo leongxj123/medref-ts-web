@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { COOKIE, verifySessionToken } from "@/lib/session-crypto";
+import { applySecurityHeaders, COOKIE, verifySessionToken } from "@/lib/session-crypto";
 
 function timingEqual(a: string, b: string) {
   if (a.length !== b.length) return false;
@@ -35,41 +35,50 @@ function apiKeyOk(req: NextRequest) {
   return given ? timingEqual(given, expect) : false;
 }
 
+function withHeaders(res: NextResponse) {
+  applySecurityHeaders(res);
+  res.headers.set("Cache-Control", "no-store");
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/data/") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt"
   ) {
-    return NextResponse.next();
+    return withHeaders(NextResponse.next());
   }
 
-  const isLogin =
-    pathname === "/login" || pathname === "/api/auth/login" || pathname === "/api/auth/status";
+  // Corpus must not be publicly downloadable.
+  if (pathname.startsWith("/data/")) {
+    return withHeaders(NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 }));
+  }
+
+  const isLogin = pathname === "/login" || pathname === "/api/auth/login";
   const isLogout = pathname === "/api/auth/logout";
   const isApi = pathname.startsWith("/api/v1");
   const session = await hasSession(req);
 
-  if (isApi && (apiKeyOk(req) || session)) return NextResponse.next();
+  if (isApi && (apiKeyOk(req) || session)) return withHeaders(NextResponse.next());
   if (isLogin) {
     if (session && pathname === "/login") {
-      return NextResponse.redirect(new URL("/", req.url));
+      return withHeaders(NextResponse.redirect(new URL("/", req.url)));
     }
-    return NextResponse.next();
+    return withHeaders(NextResponse.next());
   }
-  if (isLogout) return NextResponse.next();
-  if (session) return NextResponse.next();
+  if (isLogout) return withHeaders(NextResponse.next());
+  if (session) return withHeaders(NextResponse.next());
 
   if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+    return withHeaders(NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 }));
   }
   const url = req.nextUrl.clone();
   url.pathname = "/login";
   url.searchParams.set("next", pathname + (req.nextUrl.search || ""));
-  return NextResponse.redirect(url);
+  return withHeaders(NextResponse.redirect(url));
 }
 
 export const config = {

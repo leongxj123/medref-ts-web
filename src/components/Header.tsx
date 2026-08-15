@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Hit = { name: string; kind: string };
 
@@ -24,26 +24,33 @@ function saveQ(value: string) {
   }
 }
 
+function navMode(pathname: string): "home" | "drug" | "wiki" {
+  if (pathname.startsWith("/wiki")) return "wiki";
+  if (
+    pathname.startsWith("/search") ||
+    pathname.startsWith("/drug") ||
+    pathname.startsWith("/generic") ||
+    pathname.startsWith("/mfr") ||
+    pathname.startsWith("/drugs-for")
+  ) {
+    return "drug";
+  }
+  return "home";
+}
+
 export function Header({ subtitle }: { subtitle: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const mode = pathname.startsWith("/wiki")
-    ? "wiki"
-    : pathname.startsWith("/search") ||
-        pathname.startsWith("/drug") ||
-        pathname.startsWith("/generic") ||
-        pathname.startsWith("/mfr")
-      ? "drug"
-      : "home";
+  const mode = navMode(pathname);
   const [q, setQ] = useState(() => searchParams.get("q") || "");
   const [hits, setHits] = useState<Hit[]>([]);
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(-1);
+  const [suggestErr, setSuggestErr] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    // Only sync from URL when the page actually carries ?q= (search results).
-    // Detail pages have no q — keep what the user typed instead of wiping the box.
     if (searchParams.has("q")) {
       const fromUrl = searchParams.get("q") || "";
       setQ(fromUrl);
@@ -54,19 +61,41 @@ export function Header({ subtitle }: { subtitle: string }) {
   }, [searchParams]);
 
   useEffect(() => {
+    abortRef.current?.abort();
+    const query = q.trim();
+    if (!query) {
+      setHits([]);
+      setSuggestErr("");
+      return;
+    }
+    const ac = new AbortController();
+    abortRef.current = ac;
     const t = setTimeout(async () => {
-      const query = q.trim();
-      if (!query) {
-        setHits([]);
-        return;
+      try {
+        const res = await fetch(`/api/v1/suggest?q=${encodeURIComponent(query)}&mode=${mode}`, {
+          signal: ac.signal,
+        });
+        if (res.status === 401) {
+          setSuggestErr("登录已失效");
+          return;
+        }
+        if (!res.ok) {
+          setSuggestErr("联想失败");
+          return;
+        }
+        const data = await res.json();
+        setHits(data.items || []);
+        setIdx(-1);
+        setSuggestErr("");
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+        setSuggestErr("联想失败");
       }
-      const res = await fetch(`/api/v1/suggest?q=${encodeURIComponent(query)}&mode=${mode}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setHits(data.items || []);
-      setIdx(-1);
     }, 80);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
   }, [q, mode]);
 
   function updateQ(value: string) {
@@ -159,10 +188,11 @@ export function Header({ subtitle }: { subtitle: string }) {
             ))}
           </div>
         )}
+        {suggestErr ? <div className="suggest-err muted">{suggestErr}</div> : null}
       </form>
       {pathname !== "/login" ? (
-        <form action="/api/auth/logout" method="post" style={{ alignSelf: "end" }}>
-          <button type="submit" className="muted" style={{ fontSize: 12, background: "none", border: 0, padding: 0, cursor: "pointer" }}>
+        <form action="/api/auth/logout" method="post" className="logout-form">
+          <button type="submit" className="muted logout-btn">
             退出
           </button>
         </form>

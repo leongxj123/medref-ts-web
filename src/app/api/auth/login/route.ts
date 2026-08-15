@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkPassword, signSession } from "@/lib/auth-shared";
+import { checkPassword, safeNextPath, signSession } from "@/lib/auth-shared";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { COOKIE, sessionCookieOptions } from "@/lib/session-crypto";
 
 export const dynamic = "force-dynamic";
@@ -12,21 +13,35 @@ function publicOrigin(req: NextRequest) {
   return new URL(req.url).origin;
 }
 
-function safePath(raw: string | null) {
-  const next = (raw || "/").trim() || "/";
-  if (!next.startsWith("/") || next.startsWith("//")) return "/";
-  return next;
+function originAllowed(req: NextRequest) {
+  const origin = req.headers.get("origin");
+  if (!origin) return true; // same-origin navigational POST may omit Origin in some browsers
+  try {
+    return new URL(origin).host === new URL(publicOrigin(req)).host;
+  } catch {
+    return false;
+  }
 }
 
 function attachSession(res: NextResponse, token: string, req: NextRequest) {
-  const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim();
-  const secure = proto === "https" || process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
-  res.cookies.set(COOKIE, token, { ...sessionCookieOptions(), secure });
+  res.cookies.set(COOKIE, token, sessionCookieOptions(undefined, req));
   res.headers.set("Cache-Control", "no-store");
   return res;
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(`login:${clientKey(req)}`, 20, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
+
+  if (!originAllowed(req)) {
+    return NextResponse.json({ ok: false, error: "invalid_origin" }, { status: 403 });
+  }
+
   const contentType = req.headers.get("content-type") || "";
   let username = "";
   let password = "";
@@ -48,10 +63,13 @@ export async function POST(req: NextRequest) {
     nextRaw = String(form?.get("next") || "/");
   }
 
-  const nextPath = safePath(nextRaw);
+  const nextPath = safeNextPath(nextRaw);
   const origin = publicOrigin(req);
+  const hasUser = Boolean(process.env.AUTH_USERNAME?.trim());
+  const hasSecret = Boolean(process.env.AUTH_SECRET?.trim());
+  const hasPass = Boolean(process.env.AUTH_PASSWORD?.trim() || process.env.AUTH_PASSWORD_HASH?.trim());
 
-  if (!process.env.AUTH_USERNAME?.trim() || !process.env.AUTH_PASSWORD?.trim() || !process.env.AUTH_SECRET?.trim()) {
+  if (!hasUser || !hasPass || !hasSecret) {
     if (contentType.includes("application/json")) {
       return NextResponse.json({ ok: false, error: "missing_env" }, { status: 500 });
     }

@@ -4,8 +4,6 @@ import { Toolbar } from "@/components/ClientBits";
 import { getMeta } from "@/lib/data";
 import { queryGeneric } from "@/lib/search";
 
-export const dynamic = "force-dynamic";
-
 export default async function GenericPage({
   params,
   searchParams,

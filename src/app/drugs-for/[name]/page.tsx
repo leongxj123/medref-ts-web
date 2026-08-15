@@ -4,8 +4,6 @@ import { Filters } from "@/components/Filters";
 import { getMeta, wikiPath } from "@/lib/data";
 import { queryDisease, resolveWiki } from "@/lib/search";
 
-export const dynamic = "force-dynamic";
-
 export default async function DrugsForPage({
   params,
   searchParams,

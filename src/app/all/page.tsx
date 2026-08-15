@@ -4,8 +4,6 @@ import { Filters } from "@/components/Filters";
 import { getMeta } from "@/lib/data";
 import { searchDrugs, searchWiki } from "@/lib/search";
 
-export const dynamic = "force-dynamic";
-
 export default async function AllPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
   const q = sp.q || "";

@@ -1,68 +1,60 @@
 # 药品 · 疾病查询（TypeScript / Vercel）
 
-这是给 Vercel 部署的在线版，和旁边的 `site` 离线 HTML 版分开。浏览器不再下载 26MB 目录，检索和详情都在服务端完成；LLM 走同一套 JSON API。
+在线版检索站（与旁边的 `site` 离线 HTML 分开）。浏览器不下载整库；检索与详情在服务端完成。LLM / 脚本走同一套 `/api/v1` JSON API。
 
-## 1. 准备数据（在有 `data/drugs.db` 的这台电脑上）
+## 1. 导出语料
 
-```bash
+```powershell
 cd D:\Desktop\药品
 python export_web.py
 ```
 
-会生成 `ts-web/public/data/`（gzip 分片，部署时一起上传）。
+会写入 `ts-web/public/data/`（含 `meta.json`、gzip 目录与分片）。`npm run build` 会先跑 `scripts/check-data.mjs`；本地缺文件且未设 `DATA_BASE_URL` 时构建失败。
 
 ## 2. 本地运行
 
-```bash
+```powershell
 cd ts-web
 copy .env.example .env.local
 npm install
 npm run dev
 ```
 
-打开 http://localhost:3000 ，用 `.env.local` 里的账号登录。
+打开 http://localhost:3000 。
 
-## 3. Vercel 环境变量（Settings → Environment Variables）
+## 3. 环境变量（Vercel → Settings → Environment Variables，勾选 Production）
 
-| 变量 | 用途 |
-| --- | --- |
+| 变量 | 说明 |
+|---|---|
 | `AUTH_USERNAME` | 网页登录账号 |
-| `AUTH_PASSWORD` | 网页登录密码 |
-| `AUTH_SECRET` | 至少 16 位随机串，用来签发登录 Cookie |
-| `API_KEY` | LLM / 程序调用 API 的密钥 |
-
-不要把账号密码写进代码或 Git。
+| `AUTH_PASSWORD` 或 `AUTH_PASSWORD_HASH` | 明文密码，或 `node scripts/hash-password.mjs "密码"` 生成的 `scrypt$…` |
+| `AUTH_SECRET` | ≥16 位随机串，签发会话 Cookie |
+| `API_KEY` | LLM / 程序调用 Bearer Token |
+| `DATA_BASE_URL` | 可选。语料在 CDN 时的根 URL（不要指向本站 `/data`，该路径已禁止公开下载） |
+| `DATA_FETCH_TOKEN` | 可选。拉取 CDN 语料时的 Bearer |
 
 ## 4. 部署
 
-数据文件大约几十到一百多 MB，**建议在本机用 CLI 部署**（会带上 `public/data`）：
+优先本机上传（含 `public/data`）：
 
-```bash
-cd ts-web
+```powershell
 npx vercel --prod
 ```
 
-如果只推 GitHub 再让 Vercel 构建，仓库里没有 `public/data`，网站会起不来。除非你另行把数据放到可访问的 CDN，并设置 `DATA_BASE_URL`。
+若只推 GitHub 再由 Vercel 构建，仓库必须包含 `public/data`，否则构建被 `check-data` 拦住（除非配置了 `DATA_BASE_URL`）。
 
-## 5. LLM API
+## 5. 安全说明
 
-鉴权：`Authorization: Bearer $API_KEY` 或 Header `x-api-key`。
+- `/data/*` 对浏览器返回 403；语料只由服务端读盘（或 `DATA_BASE_URL`）。
+- 登录有 Origin 校验与简易限流；联想接口也有限流。
+- 会话 Cookie：HttpOnly、SameSite=Lax、生产环境 Secure，约 14 天。
+- 「退出」仅 POST，避免 Link 预取误清 Cookie。
 
-说明文档：`GET /api/v1/openapi`
+## 6. API
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/api/v1/search?q=阿司匹林&scope=all` | 综合检索，`scope=drug\|wiki\|all` |
-| GET | `/api/v1/suggest?q=阿司` | 联想 |
-| GET | `/api/v1/drugs/{id}` | 说明书结构化正文（无 HTML） |
-| GET | `/api/v1/generics/{name}` | 某通用名下的文号/厂家 |
-| GET | `/api/v1/diseases/{name}` | 疾病百科（高血压/高血压病会对齐） |
-| GET | `/api/v1/drugs-for/{name}` | 该病在说明书里出现过的药品 |
+登录后打开 `/docs`，或请求 `/api/v1/openapi`。调用示例：
 
-示例：
-
-```bash
-curl -H "Authorization: Bearer $API_KEY" "https://你的域名/api/v1/diseases/高血压病"
+```http
+Authorization: Bearer $API_KEY
+GET /api/v1/search?q=阿莫西林&scope=drug
 ```
-
-给 LLM 的工具描述可以直接喂 `/api/v1/openapi` 的 JSON。
