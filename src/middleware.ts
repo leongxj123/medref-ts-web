@@ -86,7 +86,8 @@ export async function middleware(req: NextRequest) {
 
   if (internalOk(req)) return NextResponse.next();
 
-  const isLogin = pathname === "/login" || pathname === "/api/auth/login";
+  const isLogin =
+    pathname === "/login" || pathname === "/api/auth/login" || pathname === "/api/auth/status";
   const isLogout = pathname === "/api/auth/logout";
   const isApi = pathname.startsWith("/api/v1");
   const session = await hasSession(req);
