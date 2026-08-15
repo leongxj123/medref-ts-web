@@ -4,8 +4,9 @@ import { COOKIE, serializeSessionCookie, sessionCookieOptions } from "@/lib/sess
 export const dynamic = "force-dynamic";
 
 function clearCookie(res: NextResponse) {
-  res.cookies.set(COOKIE, "", { ...sessionCookieOptions(0), maxAge: 0 });
-  res.headers.append("Set-Cookie", serializeSessionCookie("", 0));
+  const opts = sessionCookieOptions(0);
+  res.cookies.set(COOKIE, "", { ...opts, maxAge: 0 });
+  res.headers.set("Set-Cookie", serializeSessionCookie("", 0));
   res.headers.set("Cache-Control", "no-store");
   return res;
 }
@@ -17,10 +18,15 @@ function publicOrigin(req: NextRequest) {
   return new URL(req.url).origin;
 }
 
-export async function POST() {
+/** Only POST clears the session. GET must be a no-op — Next.js <Link> prefetches hrefs and was logging everyone out. */
+export async function POST(req: NextRequest) {
+  const accept = req.headers.get("accept") || "";
+  if (accept.includes("text/html")) {
+    return clearCookie(NextResponse.redirect(new URL("/login", publicOrigin(req)), 303));
+  }
   return clearCookie(NextResponse.json({ ok: true }));
 }
 
 export async function GET(req: NextRequest) {
-  return clearCookie(NextResponse.redirect(new URL("/login", publicOrigin(req)), 303));
+  return NextResponse.redirect(new URL("/login", publicOrigin(req)), 303);
 }

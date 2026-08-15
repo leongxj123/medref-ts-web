@@ -65,7 +65,6 @@ export async function verifySessionToken(token: string, secret: string) {
 }
 
 function cookieSecure() {
-  // Always Secure on Vercel (HTTPS). Avoid relying on build-time NODE_ENV alone.
   return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
 }
 
@@ -76,14 +75,13 @@ export function sessionCookieOptions(maxAge = SESSION_DAYS * 24 * 3600) {
     secure: cookieSecure(),
     path: "/",
     maxAge,
-    expires: new Date(Date.now() + maxAge * 1000),
+    expires: new Date(Date.now() + Math.max(0, maxAge) * 1000),
   };
 }
 
-/** Manual Set-Cookie line — more reliable on redirect responses than cookies.set alone. */
 export function serializeSessionCookie(value: string, maxAge = SESSION_DAYS * 24 * 3600) {
   const parts = [
-    `${COOKIE}=${encodeURIComponent(value)}`,
+    `${COOKIE}=${value}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",

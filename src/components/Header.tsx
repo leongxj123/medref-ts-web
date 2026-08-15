@@ -121,9 +121,11 @@ export function Header({ subtitle }: { subtitle: string }) {
         )}
       </form>
       {pathname !== "/login" ? (
-        <Link href="/api/auth/logout" className="muted" style={{ fontSize: 12, justifySelf: "end" }}>
-          退出
-        </Link>
+        <form action="/api/auth/logout" method="post" style={{ alignSelf: "end" }}>
+          <button type="submit" className="muted" style={{ fontSize: 12, background: "none", border: 0, padding: 0, cursor: "pointer" }}>
+            退出
+          </button>
+        </form>
       ) : null}
     </header>
   );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkPassword, signSession } from "@/lib/auth-shared";
-import { COOKIE, serializeSessionCookie, sessionCookieOptions } from "@/lib/session-crypto";
+import { COOKIE, sessionCookieOptions } from "@/lib/session-crypto";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,11 +18,10 @@ function safePath(raw: string | null) {
   return next;
 }
 
-function attachSession(res: NextResponse, token: string) {
-  const opts = sessionCookieOptions();
-  res.cookies.set(COOKIE, token, opts);
-  // Belt-and-suspenders: some hosts drop cookies.set on certain responses.
-  res.headers.append("Set-Cookie", serializeSessionCookie(token, opts.maxAge));
+function attachSession(res: NextResponse, token: string, req: NextRequest) {
+  const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim();
+  const secure = proto === "https" || process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+  res.cookies.set(COOKIE, token, { ...sessionCookieOptions(), secure });
   res.headers.set("Cache-Control", "no-store");
   return res;
 }
@@ -73,19 +72,8 @@ export async function POST(req: NextRequest) {
   const wantsJson = contentType.includes("application/json");
 
   if (wantsJson) {
-    return attachSession(NextResponse.json({ ok: true }), token);
+    return attachSession(NextResponse.json({ ok: true }), token, req);
   }
 
-  // 200 + client redirect: browsers reliably store Set-Cookie before navigating.
-  // (302/307 after POST often drops the session on the next refresh.)
-  const dest = new URL(nextPath, origin).pathname + new URL(nextPath, origin).search;
-  const safeDest = safePath(dest);
-  const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"/><meta http-equiv="refresh" content="0;url=${safeDest}"/><title>登录成功</title></head><body><script>location.replace(${JSON.stringify(safeDest)})</script><p><a href="${safeDest}">继续</a></p></body></html>`;
-  return attachSession(
-    new NextResponse(html, {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    }),
-    token
-  );
+  return attachSession(NextResponse.redirect(new URL(nextPath, origin), 303), token, req);
 }
